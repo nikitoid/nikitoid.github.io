@@ -160,10 +160,11 @@ header #logo{}
 
 .content-box.box-1 {}
 .content-box.box-1 .wrap-box{padding: 80px 0;}
-.content-box.box-1 .owl-carousel .item{box-shadow: 0 20px 40px 0 #aaa;margin: 0 12px;}
+.content-box.box-1 .owl-carousel .item{box-shadow: 0 20px 40px 0 #aaa;margin: 0px 80px;}
 .content-box.box-1 .owl-carousel .item p{margin: 0; }
+.owl-carousel{padding-top: 20px;}
 
-.content-box.box-2 .wrap-box{padding: 0 10px 100px;}
+.content-box.box-2 .wrap-box{padding: 100px 10px 100px;}
 
 .content-box.box-3 .wrap-box{}
 

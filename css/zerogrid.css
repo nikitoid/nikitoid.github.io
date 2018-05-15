@@ -27,7 +27,7 @@ Author URI: http://www.zerotheme.com/
 .row:after{ content: '\0020';display: block;overflow: hidden;visibility: hidden;width: 0;height: 0;}
 .row:after{clear: both;}
 
-.wrap-col{margin: 0 10px;}
+.wrap-col{margin: 0 10px; font-size: 16pt; line-height: 2;}
 
 /* .zerogrid [class^="col-"],  */
 /* .zerogrid [class*=" col-"]{ */
