@@ -3,28 +3,46 @@ if (
   "serviceWorker" in navigator &&
   (location.protocol === "https:" || location.hostname === "localhost")
 ) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => {
-        reg.onupdatefound = () => {
-          const installingWorker = reg.installing;
-          installingWorker.onstatechange = () => {
-            if (installingWorker.state === "installed") {
-              if (navigator.serviceWorker.controller) {
-                showUpdateBanner(reg);
-              } else {
-                console.log("Контент кэширован для оффлайн-использования.");
-              }
-            }
-          };
-        };
-      })
-      .catch((error) => {
-        console.error("Ошибка регистрации ServiceWorker:", error);
-      });
-  });
+  // Функция для отслеживания установки нового SW
+  const trackInstalling = (worker) => {
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "installed") {
+        // Новый SW установлен и ожидает активации.
+        // Показываем пользователю баннер с предложением обновиться.
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg && reg.waiting) {
+            showUpdateBanner(reg);
+          }
+        });
+      }
+    });
+  };
 
+  // Регистрируем SW
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then((reg) => {
+      // Проверяем, не ожидает ли уже какой-то SW активации.
+      // Это может случиться, если пользователь открыл сайт в новой вкладке.
+      if (reg.waiting) {
+        showUpdateBanner(reg);
+        return;
+      }
+      // Проверяем, не устанавливается ли SW прямо сейчас.
+      if (reg.installing) {
+        trackInstalling(reg.installing);
+        return;
+      }
+      // Слушаем событие, которое говорит о нахождении нового SW.
+      reg.addEventListener("updatefound", () => {
+        trackInstalling(reg.installing);
+      });
+    })
+    .catch((error) => {
+      console.error("Ошибка регистрации ServiceWorker:", error);
+    });
+
+  // Перезагрузка страницы после того, как новый SW вступил в силу
   let refreshing;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
@@ -95,7 +113,10 @@ const updateBanner = document.getElementById("update-banner");
 function showUpdateBanner(reg) {
   updateBanner.classList.remove("hidden");
   document.getElementById("update-button").addEventListener("click", () => {
-    reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    // Отправляем команду новому SW на активацию
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
     updateBanner.classList.add("hidden");
   });
 }
@@ -105,7 +126,6 @@ const fileInput = document.getElementById("file-input");
 const dropZone = document.getElementById("drop-zone");
 const statusDiv = document.getElementById("status");
 const resultsDiv = document.getElementById("results");
-// ИЗМЕНЕНО: Получаем элементы прогресс-бара
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 
@@ -147,12 +167,13 @@ async function handleFiles(files) {
   }
 
   resultsDiv.innerHTML = "";
-  statusDiv.innerHTML = `<div class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Обработка ${heicFiles.length} файлов...</span></div>`;
+  statusDiv.innerHTML = `<span>Обработка ${heicFiles.length} файлов...</span>`;
 
-  // ИЗМЕНЕНО: Показываем и сбрасываем прогресс-бар
+  // Показываем и сбрасываем прогресс-бар
   progressContainer.classList.remove("hidden");
   progressBar.style.width = "0%";
-  progressBar.textContent = "0%";
+  // ИЗМЕНЕНО: Устанавливаем начальный текст
+  progressBar.textContent = `Обработано 0 из ${heicFiles.length}`;
 
   let processedCount = 0;
   let convertedCount = 0;
@@ -169,15 +190,15 @@ async function handleFiles(files) {
     // Обновляем прогресс-бар после каждого файла
     const percentage = Math.round((processedCount / heicFiles.length) * 100);
     progressBar.style.width = `${percentage}%`;
-    progressBar.textContent = `${percentage}%`;
+    // ИЗМЕНЕНО: Обновляем текст
+    progressBar.textContent = `Обработано ${processedCount} из ${heicFiles.length}`;
   }
 
   statusDiv.textContent = `Готово! Успешно сконвертировано ${convertedCount} из ${heicFiles.length} файлов.`;
 
-  // Скрываем прогресс-бар через секунду после завершения
   setTimeout(() => {
     progressContainer.classList.add("hidden");
-  }, 1000);
+  }, 1500);
 }
 
 async function convertFile(file) {

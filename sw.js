@@ -1,5 +1,5 @@
 // ИЗМЕНЕНО: Версия кэша увеличена для запуска обновления
-const CACHE_NAME = "heic-converter-v3";
+const CACHE_NAME = "heic-converter-v4";
 // Файлы, которые нужно закэшировать
 const urlsToCache = [
   "/",
