@@ -79,23 +79,6 @@
         const loader = document.getElementById("loader");
         const errorMessage = document.getElementById("error-message");
 
-        // Проверяем, были ли заменены значения по умолчанию
-        if (
-          GITHUB_USERNAME === "YOUR_USERNAME" ||
-          GITHUB_REPO === "YOUR_REPO_NAME"
-        ) {
-          loader.style.display = "none";
-          const setupMessage = document.createElement("div");
-          setupMessage.className =
-            "col-span-full text-center p-8 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-800 dark:text-yellow-300 rounded-lg";
-          setupMessage.innerHTML = `
-                    <h3 class="font-bold text-lg mb-2">Требуется настройка!</h3>
-                    <p>Пожалуйста, откройте файл <strong>index.html</strong> и замените <code>YOUR_USERNAME</code> и <code>YOUR_REPO_NAME</code> на ваши данные от GitHub в секции &lt;script&gt;.</p>
-                `;
-          grid.appendChild(setupMessage);
-          return;
-        }
-
         // URL для API GitHub, чтобы получить содержимое репозитория
         const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/`;
 
