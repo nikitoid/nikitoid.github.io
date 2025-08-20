@@ -1,5 +1,5 @@
-// ИЗМЕНЕНО: Версия кэша увеличена для запуска обновления
-const CACHE_NAME = "heic-converter-v5.1";
+// ИЗМЕНЕНО: Версия кэша для запуска обновления
+const CACHE_NAME = "heic-converter-v0.0.7";
 // Файлы, которые нужно закэшировать
 const urlsToCache = [
   "/",
@@ -49,9 +49,18 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Слушатель для активации новой версии по команде от клиента
+// Слушатель для команд от клиента
 self.addEventListener("message", (event) => {
+  // Команда для активации новой версии
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+
+  // Команда для получения текущей версии
+  if (event.data && event.data.type === "GET_VERSION") {
+    const version = CACHE_NAME.split("-").pop() || "N/A";
+    if (event.source) {
+      event.source.postMessage({ type: "VERSION", version: version });
+    }
   }
 });

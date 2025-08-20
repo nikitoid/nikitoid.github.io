@@ -1,21 +1,12 @@
-// Определяем текущую версию приложения
-const APP_VERSION = "5.0";
-
 // --- РЕГИСТРАЦИЯ SERVICE WORKER И ЛОГИКА ОБНОВЛЕНИЯ ---
 if (
   "serviceWorker" in navigator &&
   (location.protocol === "https:" || location.hostname === "localhost")
 ) {
-  // Регистрируем SW
   navigator.serviceWorker
     .register("/sw.js")
     .then((reg) => {
-      // Эта функция будет вызываться при каждой загрузке страницы
-      // и принудительно проверять наличие новой версии SW на сервере.
-      // Это решает проблему с кэшированием sw.js на GitHub Pages.
       reg.update();
-
-      // Слушаем событие, которое говорит о нахождении нового SW.
       reg.onupdatefound = () => {
         const installingWorker = reg.installing;
         installingWorker.onstatechange = () => {
@@ -23,8 +14,6 @@ if (
             installingWorker.state === "installed" &&
             navigator.serviceWorker.controller
           ) {
-            // Новый SW установлен и ожидает активации.
-            // Показываем пользователю баннер с предложением обновиться.
             showUpdateBanner(reg);
           }
         };
@@ -34,7 +23,21 @@ if (
       console.error("Ошибка регистрации ServiceWorker:", error);
     });
 
-  // Перезагрузка страницы после того, как новый SW вступил в силу
+  navigator.serviceWorker.ready.then((registration) => {
+    if (registration.active) {
+      registration.active.postMessage({ type: "GET_VERSION" });
+    }
+  });
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "VERSION") {
+      const appVersionElement = document.getElementById("app-version");
+      if (appVersionElement) {
+        appVersionElement.textContent = `Версия ${event.data.version}`;
+      }
+    }
+  });
+
   let refreshing;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
@@ -120,12 +123,13 @@ const resultsDiv = document.getElementById("results");
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
-const appVersionElement = document.getElementById("app-version");
+const qualitySlider = document.getElementById("quality-slider");
+const qualityValue = document.getElementById("quality-value");
 
-// Устанавливаем версию в подвале
-if (appVersionElement) {
-  appVersionElement.textContent = `Версия ${APP_VERSION}`;
-}
+// ИЗМЕНЕНО: Обработчик для ползунка качества
+qualitySlider.addEventListener("input", (e) => {
+  qualityValue.textContent = e.target.value;
+});
 
 ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) =>
   dropZone.addEventListener(eventName, preventDefaults, false)
@@ -195,19 +199,44 @@ async function handleFiles(files) {
   }, 1500);
 }
 
+// ИЗМЕНЕНО: Функция конвертации теперь получает размер и разрешение
 async function convertFile(file) {
   try {
+    const quality = parseInt(qualitySlider.value) / 100;
     const conversionResult = await heic2any({
       blob: file,
       toType: "image/jpeg",
-      quality: 0.9,
+      quality: quality,
     });
     const url = URL.createObjectURL(conversionResult);
     const newFileName = file.name.replace(/\.(heic|heif)$/i, ".jpeg");
+
+    // Получаем размер и разрешение
+    const fileSize = (conversionResult.size / 1024 / 1024).toFixed(2); // MB
+    const dimensions = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(`${img.naturalWidth}x${img.naturalHeight}`);
+      img.onerror = () =>
+        reject("Не удалось загрузить изображение для получения размеров");
+      img.src = url;
+    });
+
     const card = document.createElement("div");
     card.className =
-      "bg-white rounded-lg shadow-md overflow-hidden fade-in border border-gray-200";
-    card.innerHTML = `<img src="${url}" alt="Сконвертированное изображение" class="w-full h-48 object-cover"><div class="p-4"><p class="text-sm font-medium text-gray-800 truncate" title="${newFileName}">${newFileName}</p><a href="${url}" download="${newFileName}" class="mt-3 inline-block w-full text-center bg-teal-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-teal-700 transition-colors">Скачать</a></div>`;
+      "bg-white rounded-lg shadow-md overflow-hidden fade-in border border-gray-200 flex flex-col";
+    card.innerHTML = `
+            <img src="${url}" alt="Сконвертированное изображение" class="w-full h-48 object-cover">
+            <div class="p-4 flex-grow flex flex-col">
+                <p class="text-sm font-medium text-gray-800 truncate" title="${newFileName}">${newFileName}</p>
+                <div class="text-xs text-gray-500 mt-1 space-x-2">
+                    <span>${dimensions}</span>
+                    <span>${fileSize} MB</span>
+                </div>
+                <a href="${url}" download="${newFileName}" class="mt-auto pt-2 inline-block w-full text-center bg-teal-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-teal-700 transition-colors">
+                    Скачать
+                </a>
+            </div>
+        `;
     return card;
   } catch (error) {
     console.error(`Ошибка конвертации файла ${file.name}:`, error);
