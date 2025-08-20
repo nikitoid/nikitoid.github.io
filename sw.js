@@ -1,5 +1,5 @@
 // ИЗМЕНЕНО: Версия кэша увеличена для запуска обновления
-const CACHE_NAME = "heic-converter-v2";
+const CACHE_NAME = "heic-converter-v3";
 // Файлы, которые нужно закэшировать
 const urlsToCache = [
   "/",
@@ -49,7 +49,7 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// ДОБАВЛЕНО: Слушатель для активации новой версии по команде от клиента
+// Слушатель для активации новой версии по команде от клиента
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();

@@ -7,13 +7,11 @@ if (
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
-        // Логика проверки обновлений
         reg.onupdatefound = () => {
           const installingWorker = reg.installing;
           installingWorker.onstatechange = () => {
             if (installingWorker.state === "installed") {
               if (navigator.serviceWorker.controller) {
-                // Новая версия доступна, показываем баннер
                 showUpdateBanner(reg);
               } else {
                 console.log("Контент кэширован для оффлайн-использования.");
@@ -27,7 +25,6 @@ if (
       });
   });
 
-  // Перезагрузка страницы после того, как новый SW вступил в силу
   let refreshing;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing) return;
@@ -98,7 +95,6 @@ const updateBanner = document.getElementById("update-banner");
 function showUpdateBanner(reg) {
   updateBanner.classList.remove("hidden");
   document.getElementById("update-button").addEventListener("click", () => {
-    // Отправляем команду новому SW на активацию
     reg.waiting.postMessage({ type: "SKIP_WAITING" });
     updateBanner.classList.add("hidden");
   });
@@ -109,6 +105,9 @@ const fileInput = document.getElementById("file-input");
 const dropZone = document.getElementById("drop-zone");
 const statusDiv = document.getElementById("status");
 const resultsDiv = document.getElementById("results");
+// ИЗМЕНЕНО: Получаем элементы прогресс-бара
+const progressContainer = document.getElementById("progress-container");
+const progressBar = document.getElementById("progress-bar");
 
 ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) =>
   dropZone.addEventListener(eventName, preventDefaults, false)
@@ -139,34 +138,46 @@ dropZone.addEventListener(
 fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
 
 async function handleFiles(files) {
-  if (files.length === 0) return;
-  resultsDiv.innerHTML = "";
-  statusDiv.innerHTML = `<div class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Обработка ${files.length} файлов...</span></div>`;
-
-  const filePromises = Array.from(files)
-    .filter((file) => /\.(heic|heif)$/i.test(file.name))
-    .map((file) =>
-      convertFile(file)
-        .then((card) => ({ status: "fulfilled", value: card }))
-        .catch((errorCard) => ({ status: "rejected", value: errorCard }))
-    );
-
-  const results = await Promise.all(filePromises);
-
-  resultsDiv.innerHTML = "";
-  let convertedCount = 0;
-  results.forEach((result) => {
-    resultsDiv.appendChild(result.value);
-    if (result.status === "fulfilled") {
-      convertedCount++;
-    }
-  });
-
-  if (filePromises.length > 0) {
-    statusDiv.textContent = `Готово! Успешно сконвертировано ${convertedCount} из ${filePromises.length} файлов.`;
-  } else {
+  const heicFiles = Array.from(files).filter((file) =>
+    /\.(heic|heif)$/i.test(file.name)
+  );
+  if (heicFiles.length === 0) {
     statusDiv.textContent = "Не найдено HEIC/HEIF файлов для конвертации.";
+    return;
   }
+
+  resultsDiv.innerHTML = "";
+  statusDiv.innerHTML = `<div class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Обработка ${heicFiles.length} файлов...</span></div>`;
+
+  // ИЗМЕНЕНО: Показываем и сбрасываем прогресс-бар
+  progressContainer.classList.remove("hidden");
+  progressBar.style.width = "0%";
+  progressBar.textContent = "0%";
+
+  let processedCount = 0;
+  let convertedCount = 0;
+
+  for (const file of heicFiles) {
+    try {
+      const card = await convertFile(file);
+      resultsDiv.appendChild(card);
+      convertedCount++;
+    } catch (errorCard) {
+      resultsDiv.appendChild(errorCard);
+    }
+    processedCount++;
+    // Обновляем прогресс-бар после каждого файла
+    const percentage = Math.round((processedCount / heicFiles.length) * 100);
+    progressBar.style.width = `${percentage}%`;
+    progressBar.textContent = `${percentage}%`;
+  }
+
+  statusDiv.textContent = `Готово! Успешно сконвертировано ${convertedCount} из ${heicFiles.length} файлов.`;
+
+  // Скрываем прогресс-бар через секунду после завершения
+  setTimeout(() => {
+    progressContainer.classList.add("hidden");
+  }, 1000);
 }
 
 async function convertFile(file) {
