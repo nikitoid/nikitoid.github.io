@@ -2,7 +2,7 @@
 
 // Оборачиваем весь код в IIFE для инкапсуляции
 (() => {
-  const APP_VERSION = "0.0.5";
+  const APP_VERSION = "0.0.6";
 
   // --- DOM Элементы ---
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
@@ -24,6 +24,11 @@
   const viewerFilename = document.getElementById("viewer-filename");
   const viewerSizes = document.getElementById("viewer-sizes");
   const viewerDownloadBtn = document.getElementById("viewer-download-btn");
+  const prevBtn = document.getElementById("prev-btn");
+  const nextBtn = document.getElementById("next-btn");
+  const progressContainer = document.getElementById("progress-container");
+  const progressBar = document.getElementById("progress-bar");
+  const progressText = document.getElementById("progress-text");
 
   // --- Элементы настроек ---
   const defaultQualitySlider = document.getElementById(
@@ -38,22 +43,80 @@
   // --- Состояние приложения ---
   let filesToConvert = [];
   let convertedFiles = [];
-  let directoryHandle = null; // Для File System Access API
+  let directoryHandle = null;
   let currentViewerIndex = -1;
 
   // --- Настройки ---
   const defaultSettings = {
-    theme: "auto", // auto, light, dark
+    theme: "auto",
     defaultQuality: 90,
-    saveMethod: "browser", // browser, filesystem
+    saveMethod: "browser",
   };
   let settings = {};
 
+  // --- IndexedDB для сохранения directoryHandle ---
+  const DB_NAME = "ConverterDB";
+  const STORE_NAME = "FileSystemHandles";
+  let db;
+
+  async function initDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onerror = () => reject("Ошибка открытия IndexedDB");
+      request.onsuccess = (event) => {
+        db = event.target.result;
+        resolve();
+      };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+    });
+  }
+
+  async function saveHandle(handle) {
+    if (!db) return;
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    await store.put(handle, "directoryHandle");
+    return tx.complete;
+  }
+
+  async function getHandle() {
+    if (!db) return null;
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const handle = await store.get("directoryHandle");
+    return handle;
+  }
+
+  async function verifyPermission(handle) {
+    if (!handle) return false;
+    const options = { mode: "readwrite" };
+    if ((await handle.queryPermission(options)) === "granted") {
+      return true;
+    }
+    if ((await handle.requestPermission(options)) === "granted") {
+      return true;
+    }
+    return false;
+  }
+
   // --- Инициализация ---
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById(
       "version-display"
     ).textContent = `Версия: ${APP_VERSION}`;
+    await initDB();
+    directoryHandle = await getHandle();
+    if (await verifyPermission(directoryHandle)) {
+      currentSavePath.textContent = directoryHandle.name;
+    } else {
+      directoryHandle = null;
+    }
+
     loadSettings();
     applyTheme();
     setupEventListeners();
@@ -78,6 +141,13 @@
     defaultQualitySlider.value = settings.defaultQuality;
     defaultQualityValue.textContent = settings.defaultQuality;
     saveMethodToggle.checked = settings.saveMethod === "filesystem";
+    updateButtonLabels();
+  }
+
+  function updateButtonLabels() {
+    const isFileSystem = settings.saveMethod === "filesystem";
+    downloadAllBtn.textContent = isFileSystem ? "Сохранить всё" : "Скачать всё";
+    viewerDownloadBtn.textContent = isFileSystem ? "Сохранить" : "Скачать";
   }
 
   // --- Логика Тем ---
@@ -126,15 +196,24 @@
     }
   }
 
+  function updateProgress(current, total) {
+    const percentage = total > 0 ? (current / total) * 100 : 0;
+    progressBar.style.width = `${percentage}%`;
+    progressText.textContent = `Обработано: ${current} из ${total}`;
+  }
+
   async function convertFiles() {
     convertBtn.disabled = true;
     convertBtn.textContent = "Конвертация...";
-    gallery.innerHTML = '<div class="loader"></div>';
+    gallery.innerHTML = "";
     galleryHeader.style.display = "none";
+    progressContainer.style.display = "block";
+    updateProgress(0, filesToConvert.length);
     convertedFiles = [];
 
     const quality = parseInt(qualitySlider.value) / 100;
 
+    let processedCount = 0;
     for (const file of filesToConvert) {
       try {
         const conversionResult = await heic2any({
@@ -153,12 +232,17 @@
       } catch (error) {
         console.error("Ошибка конвертации файла:", file.name, error);
       }
+      processedCount++;
+      updateProgress(processedCount, filesToConvert.length);
     }
 
     renderGallery();
     convertBtn.textContent = "Конвертировать";
     dropZone.querySelector("p").textContent =
       "Перетащите .HEIC файлы сюда или нажмите для выбора";
+    setTimeout(() => {
+      progressContainer.style.display = "none";
+    }, 1000);
   }
 
   // --- Галерея и Просмотр ---
@@ -170,7 +254,6 @@
         const img = document.createElement("img");
         img.src = URL.createObjectURL(file.convertedBlob);
         img.dataset.index = index;
-        img.onload = () => URL.revokeObjectURL(img.src);
         gallery.appendChild(img);
       });
     } else {
@@ -197,6 +280,19 @@
     viewerModal.style.display = "none";
   }
 
+  function showNextImage() {
+    if (convertedFiles.length === 0) return;
+    currentViewerIndex = (currentViewerIndex + 1) % convertedFiles.length;
+    openViewer(currentViewerIndex);
+  }
+
+  function showPrevImage() {
+    if (convertedFiles.length === 0) return;
+    currentViewerIndex =
+      (currentViewerIndex - 1 + convertedFiles.length) % convertedFiles.length;
+    openViewer(currentViewerIndex);
+  }
+
   // --- Логика Скачивания и File System API ---
   function checkFileSystemApiSupport() {
     const isSupported = "showDirectoryPicker" in window;
@@ -217,16 +313,20 @@
 
   async function selectSavePath() {
     try {
-      directoryHandle = await window.showDirectoryPicker();
+      const handle = await window.showDirectoryPicker();
+      await saveHandle(handle);
+      directoryHandle = handle;
       currentSavePath.textContent = directoryHandle.name;
-      // В реальном приложении нужно сохранить handle в IndexedDB для персистентности
     } catch (error) {
       console.log("Выбор папки отменен", error);
     }
   }
 
   async function downloadFile(file) {
-    if (settings.saveMethod === "filesystem" && directoryHandle) {
+    if (
+      settings.saveMethod === "filesystem" &&
+      (await verifyPermission(directoryHandle))
+    ) {
       try {
         const fileHandle = await directoryHandle.getFileHandle(file.filename, {
           create: true,
@@ -236,7 +336,6 @@
         await writable.close();
       } catch (error) {
         console.error("Ошибка прямого сохранения:", error);
-        // Если ошибка, откатываемся к обычному скачиванию
         downloadWithBrowser(file);
       }
     } else {
@@ -264,29 +363,20 @@
     settingsBtn.addEventListener("click", () => showPage(settingsPage));
     backBtn.addEventListener("click", () => showPage(mainPage));
 
-    // Drag & Drop
     dropZone.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
     ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
-      dropZone.addEventListener(
-        eventName,
-        (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        },
-        false
-      );
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
     });
-    ["dragenter", "dragover"].forEach((eventName) => {
-      dropZone.addEventListener(eventName, () =>
-        dropZone.classList.add("hover")
-      );
-    });
-    ["dragleave", "drop"].forEach((eventName) => {
-      dropZone.addEventListener(eventName, () =>
-        dropZone.classList.remove("hover")
-      );
-    });
+    ["dragenter", "dragover"].forEach((eName) =>
+      dropZone.addEventListener(eName, () => dropZone.classList.add("hover"))
+    );
+    ["dragleave", "drop"].forEach((eName) =>
+      dropZone.addEventListener(eName, () => dropZone.classList.remove("hover"))
+    );
     dropZone.addEventListener("drop", (e) => handleFiles(e.dataTransfer.files));
 
     qualitySlider.addEventListener(
@@ -306,13 +396,14 @@
     // Viewer
     closeViewerBtn.addEventListener("click", closeViewer);
     viewerDownloadBtn.addEventListener("click", () => {
-      if (currentViewerIndex > -1) {
+      if (currentViewerIndex > -1)
         downloadFile(convertedFiles[currentViewerIndex]);
-      }
     });
     viewerModal.addEventListener("click", (e) => {
       if (e.target === viewerModal) closeViewer();
     });
+    prevBtn.addEventListener("click", showPrevImage);
+    nextBtn.addEventListener("click", showNextImage);
 
     // Settings
     defaultQualitySlider.addEventListener("input", (e) => {
@@ -324,6 +415,7 @@
     saveMethodToggle.addEventListener("change", (e) => {
       settings.saveMethod = e.target.checked ? "filesystem" : "browser";
       saveSettings();
+      updateButtonLabels();
     });
     savePathBtn.addEventListener("click", selectSavePath);
   }

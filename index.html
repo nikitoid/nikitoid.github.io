@@ -18,10 +18,33 @@
         <h1>HEIC to JPEG</h1>
         <div class="header-buttons">
           <button id="theme-toggle-btn" class="icon-btn" title="Сменить тему">
-            🌓
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
           </button>
           <button id="settings-btn" class="icon-btn" title="Настройки">
-            ⚙️
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+              ></path>
+            </svg>
           </button>
         </div>
       </header>
@@ -53,6 +76,18 @@
             Конвертировать
           </button>
         </div>
+
+        <!-- Прогресс бар -->
+        <div
+          id="progress-container"
+          class="progress-container"
+          style="display: none"
+        >
+          <div class="progress-bar-wrapper">
+            <div id="progress-bar" class="progress-bar"></div>
+          </div>
+          <span id="progress-text"></span>
+        </div>
       </div>
 
       <div id="gallery-container" class="gallery-container">
@@ -70,7 +105,20 @@
     <div id="settings-page" class="page">
       <header>
         <h1>Настройки</h1>
-        <button id="back-btn" class="icon-btn" title="Назад">⬅️</button>
+        <button id="back-btn" class="icon-btn" title="Назад">
+          <svg
+            class="icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
       </header>
       <div class="settings-content">
         <div class="setting-item">
@@ -110,10 +158,34 @@
 
     <!-- #################### ПРОСМОТР ИЗОБРАЖЕНИЯ (МОДАЛЬНОЕ ОКНО) #################### -->
     <div id="viewer-modal" class="modal-overlay" style="display: none">
+      <button id="close-viewer-btn" class="icon-btn close-btn">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <button id="prev-btn" class="icon-btn nav-btn prev">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
       <div class="modal-content">
-        <button id="close-viewer-btn" class="icon-btn close-btn">
-          &times;
-        </button>
         <img id="viewer-img" src="" alt="Просмотр изображения" />
         <div class="image-info">
           <p id="viewer-filename">filename.jpg</p>
@@ -121,6 +193,19 @@
           <button id="viewer-download-btn" class="button">Скачать</button>
         </div>
       </div>
+      <button id="next-btn" class="icon-btn nav-btn next">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
     </div>
 
     <footer>
