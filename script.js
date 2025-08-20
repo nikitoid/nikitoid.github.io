@@ -3,6 +3,15 @@ if (
   "serviceWorker" in navigator &&
   (location.protocol === "https:" || location.hostname === "localhost")
 ) {
+  const appVersionElement = document.getElementById("app-version");
+
+  // Функция для запроса версии у активного SW
+  const queryVersion = () => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
+    }
+  };
+
   navigator.serviceWorker
     .register("/sw.js")
     .then((reg) => {
@@ -23,15 +32,9 @@ if (
       console.error("Ошибка регистрации ServiceWorker:", error);
     });
 
-  navigator.serviceWorker.ready.then((registration) => {
-    if (registration.active) {
-      registration.active.postMessage({ type: "GET_VERSION" });
-    }
-  });
-
+  // Слушаем ответ с версией от Service Worker
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data && event.data.type === "VERSION") {
-      const appVersionElement = document.getElementById("app-version");
       if (appVersionElement) {
         appVersionElement.textContent = `Версия ${event.data.version}`;
       }
@@ -44,6 +47,9 @@ if (
     window.location.reload();
     refreshing = true;
   });
+
+  // Запрашиваем версию при загрузке страницы
+  queryVersion();
 }
 
 // --- ЛОГИКА УСТАНОВКИ PWA ---
@@ -126,7 +132,6 @@ const progressText = document.getElementById("progress-text");
 const qualitySlider = document.getElementById("quality-slider");
 const qualityValue = document.getElementById("quality-value");
 
-// ИЗМЕНЕНО: Обработчик для ползунка качества
 qualitySlider.addEventListener("input", (e) => {
   qualityValue.textContent = e.target.value;
 });
@@ -160,6 +165,9 @@ dropZone.addEventListener(
 fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
 
 async function handleFiles(files) {
+  // ИСПРАВЛЕНО: Сбрасываем значение инпута, чтобы можно было выбрать те же файлы повторно
+  fileInput.value = null;
+
   const heicFiles = Array.from(files).filter((file) =>
     /\.(heic|heif)$/i.test(file.name)
   );
@@ -199,7 +207,6 @@ async function handleFiles(files) {
   }, 1500);
 }
 
-// ИЗМЕНЕНО: Функция конвертации теперь получает размер и разрешение
 async function convertFile(file) {
   try {
     const quality = parseInt(qualitySlider.value) / 100;
@@ -211,13 +218,13 @@ async function convertFile(file) {
     const url = URL.createObjectURL(conversionResult);
     const newFileName = file.name.replace(/\.(heic|heif)$/i, ".jpeg");
 
-    // Получаем размер и разрешение
-    const fileSize = (conversionResult.size / 1024 / 1024).toFixed(2); // MB
-    const dimensions = await new Promise((resolve, reject) => {
+    // ИЗМЕНЕНО: Получаем и форматируем оба размера
+    const originalSize = (file.size / 1024 / 1024).toFixed(2);
+    const convertedSize = (conversionResult.size / 1024 / 1024).toFixed(2);
+    const dimensions = await new Promise((resolve) => {
       const img = new Image();
       img.onload = () => resolve(`${img.naturalWidth}x${img.naturalHeight}`);
-      img.onerror = () =>
-        reject("Не удалось загрузить изображение для получения размеров");
+      img.onerror = () => resolve("N/A"); // Не блокируем в случае ошибки
       img.src = url;
     });
 
@@ -228,9 +235,9 @@ async function convertFile(file) {
             <img src="${url}" alt="Сконвертированное изображение" class="w-full h-48 object-cover">
             <div class="p-4 flex-grow flex flex-col">
                 <p class="text-sm font-medium text-gray-800 truncate" title="${newFileName}">${newFileName}</p>
-                <div class="text-xs text-gray-500 mt-1 space-x-2">
+                <div class="text-xs text-gray-500 mt-1 flex justify-between items-center">
                     <span>${dimensions}</span>
-                    <span>${fileSize} MB</span>
+                    <span class="font-mono">${originalSize}→${convertedSize} MB</span>
                 </div>
                 <a href="${url}" download="${newFileName}" class="mt-auto pt-2 inline-block w-full text-center bg-teal-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-teal-700 transition-colors">
                     Скачать
