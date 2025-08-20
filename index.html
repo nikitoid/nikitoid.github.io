@@ -9,7 +9,6 @@
     <meta name="theme-color" content="#115e59" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
-    <!-- ДОБАВЛЕНО: Favicon -->
     <link rel="icon" href="icons/favicon.ico" type="image/x-icon" />
 
     <!-- Подключение Tailwind CSS для стилизации -->
@@ -90,7 +89,7 @@
       </footer>
     </div>
 
-    <!-- Баннер и кнопка установки (скрыты по умолчанию) -->
+    <!-- Баннер установки -->
     <div
       id="install-banner"
       class="hidden fixed bottom-0 left-0 right-0 bg-teal-800 text-white p-4 shadow-lg slide-up z-50 sm:bottom-4 sm:left-1/2 sm:-translate-x-1/2 sm:rounded-lg sm:max-w-md"
@@ -153,6 +152,20 @@
         />
       </svg>
     </button>
+
+    <!-- ДОБАВЛЕНО: Баннер для обновления -->
+    <div
+      id="update-banner"
+      class="hidden fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg slide-up z-50 flex items-center space-x-4"
+    >
+      <p class="font-semibold">Доступна новая версия!</p>
+      <button
+        id="update-button"
+        class="bg-white text-gray-800 font-bold py-2 px-4 rounded-md hover:bg-gray-200 transition-colors"
+      >
+        Обновить
+      </button>
+    </div>
 
     <!-- Подключение внешнего файла скриптов -->
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
