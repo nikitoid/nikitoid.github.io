@@ -13,6 +13,12 @@
     <div class="container">
       <h1>HEIC to JPEG Converter</h1>
       <p>Hello World! Функционал конвертера будет добавлен позже.</p>
+
+      <!-- Новый элемент для проверки обновления -->
+      <button class="button">Проверить обновление</button>
+      <p style="margin-top: 1rem; font-size: 0.9rem">
+        Если вы видите эту кнопку, приложение обновилось!
+      </p>
     </div>
 
     <!-- Постоянная кнопка установки в углу -->
@@ -47,7 +53,7 @@
     <script>
       // --- ОТОБРАЖЕНИЕ ВЕРСИИ ---
       // ВАЖНО: Эта версия должна совпадать с CACHE_VERSION в service-worker.js
-      const APP_VERSION = "0.0.2";
+      const APP_VERSION = "0.0.3";
       document.getElementById(
         "version-display"
       ).textContent = `Версия: ${APP_VERSION}`;
