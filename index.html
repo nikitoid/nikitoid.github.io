@@ -8,110 +8,126 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
+    <!-- Библиотека для конвертации HEIC -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   </head>
   <body>
-    <div class="container">
-      <h1>HEIC to JPEG Converter</h1>
-      <p>Hello World! Функционал конвертера будет добавлен позже.</p>
+    <!-- #################### ОСНОВНАЯ СТРАНИЦА #################### -->
+    <main id="main-page" class="page active">
+      <header>
+        <h1>HEIC to JPEG</h1>
+        <div class="header-buttons">
+          <button id="theme-toggle-btn" class="icon-btn" title="Сменить тему">
+            🌓
+          </button>
+          <button id="settings-btn" class="icon-btn" title="Настройки">
+            ⚙️
+          </button>
+        </div>
+      </header>
 
-      <!-- Новый элемент для проверки обновления -->
-      <button class="button">Проверить обновление</button>
-      <p style="margin-top: 1rem; font-size: 0.9rem">
-        Если вы видите эту кнопку, приложение обновилось!
-      </p>
+      <div class="converter-area">
+        <div id="drop-zone" class="drop-zone">
+          <p>Перетащите .HEIC файлы сюда или нажмите для выбора</p>
+          <input
+            type="file"
+            id="file-input"
+            multiple
+            accept=".heic,.heif"
+            hidden
+          />
+        </div>
+
+        <div class="controls">
+          <label for="quality-slider"
+            >Качество JPEG: <span id="quality-value">90</span>%</label
+          >
+          <input
+            type="range"
+            id="quality-slider"
+            min="10"
+            max="100"
+            value="90"
+          />
+          <button id="convert-btn" class="button" disabled>
+            Конвертировать
+          </button>
+        </div>
+      </div>
+
+      <div id="gallery-container" class="gallery-container">
+        <div class="gallery-header" style="display: none">
+          <h2>Результаты</h2>
+          <button id="download-all-btn" class="button-secondary">
+            Скачать всё
+          </button>
+        </div>
+        <div id="gallery" class="gallery"></div>
+      </div>
+    </main>
+
+    <!-- #################### СТРАНИЦА НАСТРОЕК #################### -->
+    <div id="settings-page" class="page">
+      <header>
+        <h1>Настройки</h1>
+        <button id="back-btn" class="icon-btn" title="Назад">⬅️</button>
+      </header>
+      <div class="settings-content">
+        <div class="setting-item">
+          <label for="default-quality-slider"
+            >Качество JPEG по умолчанию:
+            <span id="default-quality-value">90</span>%</label
+          >
+          <input
+            type="range"
+            id="default-quality-slider"
+            min="10"
+            max="100"
+            value="90"
+          />
+        </div>
+        <div class="setting-item">
+          <label>Метод сохранения</label>
+          <div class="toggle-switch-container">
+            <span>Загрузка через браузер</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="save-method-toggle" />
+              <span class="slider round"></span>
+            </label>
+            <span>Прямое сохранение</span>
+          </div>
+          <small id="fs-api-support" class="tooltip"></small>
+        </div>
+        <div class="setting-item">
+          <label for="save-path-btn">Папка для сохранения</label>
+          <button id="save-path-btn" class="button-secondary">
+            Выбрать папку
+          </button>
+          <p>Текущий путь: <code id="current-save-path">не выбрана</code></p>
+        </div>
+      </div>
     </div>
 
-    <!-- Постоянная кнопка установки в углу -->
-    <button
-      id="install-button"
-      class="install-button-permanent"
-      style="display: none"
-      title="Установить приложение"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7 10 12 15 17 10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-      </svg>
-    </button>
+    <!-- #################### ПРОСМОТР ИЗОБРАЖЕНИЯ (МОДАЛЬНОЕ ОКНО) #################### -->
+    <div id="viewer-modal" class="modal-overlay" style="display: none">
+      <div class="modal-content">
+        <button id="close-viewer-btn" class="icon-btn close-btn">
+          &times;
+        </button>
+        <img id="viewer-img" src="" alt="Просмотр изображения" />
+        <div class="image-info">
+          <p id="viewer-filename">filename.jpg</p>
+          <p id="viewer-sizes">0.00 MB → 0.00 MB</p>
+          <button id="viewer-download-btn" class="button">Скачать</button>
+        </div>
+      </div>
+    </div>
 
-    <!-- Подвал для отображения версии -->
     <footer>
       <p id="version-display"></p>
     </footer>
 
-    <script>
-      // --- ОТОБРАЖЕНИЕ ВЕРСИИ ---
-      // ВАЖНО: Эта версия должна совпадать с CACHE_VERSION в service-worker.js
-      const APP_VERSION = "0.0.3";
-      document.getElementById(
-        "version-display"
-      ).textContent = `Версия: ${APP_VERSION}`;
-
-      // --- ЛОГИКА SERVICE WORKER И ОБНОВЛЕНИЙ ---
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker
-          .register("/service-worker.js")
-          .then((reg) => {
-            console.log("Service worker зарегистрирован.");
-          })
-          .catch((error) => {
-            console.log("Ошибка регистрации Service Worker:", error);
-          });
-
-        // При перезагрузке страницы, если новый сервис-воркер уже был, он станет активным
-        // Это вызовет перезагрузку страницы для отображения обновленного контента
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          console.log("Service Worker был обновлен. Перезагрузка страницы...");
-          window.location.reload();
-        });
-      }
-
-      // --- ЛОГИКА УСТАНОВКИ PWA ---
-      let deferredPrompt;
-      const permanentInstallButton = document.getElementById("install-button");
-
-      window.addEventListener("beforeinstallprompt", (e) => {
-        // Предотвращаем стандартное поведение браузера
-        e.preventDefault();
-        // Сохраняем событие, чтобы его можно было вызвать позже
-        deferredPrompt = e;
-        console.log("Событие beforeinstallprompt было перехвачено");
-
-        // Показываем нашу кнопку установки
-        permanentInstallButton.style.display = "flex";
-      });
-
-      // Клик по постоянной кнопке установки
-      permanentInstallButton.addEventListener("click", async () => {
-        if (deferredPrompt) {
-          // Показываем стандартный диалог установки браузера
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log(`Результат установки: ${outcome}`);
-          // Обнуляем событие, так как оно одноразовое
-          deferredPrompt = null;
-          // Скрываем кнопку после вызова
-          permanentInstallButton.style.display = "none";
-        }
-      });
-
-      // Скрываем кнопку, если приложение уже установлено
-      window.addEventListener("appinstalled", () => {
-        console.log("Приложение было успешно установлено!");
-        permanentInstallButton.style.display = "none";
-        deferredPrompt = null;
-      });
-    </script>
+    <!-- Подключаем основной скрипт приложения -->
+    <script src="script.js" defer></script>
   </body>
 </html>

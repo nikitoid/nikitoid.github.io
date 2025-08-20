@@ -1,7 +1,7 @@
 // service-worker.js
 
 // Версия кеша. Меняйте это значение при каждом обновлении файлов приложения.
-const CACHE_VERSION = "0.0.3";
+const CACHE_VERSION = "0.0.5";
 const CACHE_NAME = `heic-to-jpeg-${CACHE_VERSION}`;
 
 // Файлы, которые необходимо кешировать для работы офлайн.
@@ -9,7 +9,9 @@ const urlsToCache = [
   "/",
   "/index.html",
   "/style.css",
+  "/script.js", // Добавляем новый файл скрипта в кеш
   "/manifest.json",
+  "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
 ];
