@@ -1,42 +1,34 @@
+// Определяем текущую версию приложения
+const APP_VERSION = "5.0";
+
 // --- РЕГИСТРАЦИЯ SERVICE WORKER И ЛОГИКА ОБНОВЛЕНИЯ ---
 if (
   "serviceWorker" in navigator &&
   (location.protocol === "https:" || location.hostname === "localhost")
 ) {
-  // Функция для отслеживания установки нового SW
-  const trackInstalling = (worker) => {
-    worker.addEventListener("statechange", () => {
-      if (worker.state === "installed") {
-        // Новый SW установлен и ожидает активации.
-        // Показываем пользователю баннер с предложением обновиться.
-        navigator.serviceWorker.getRegistration().then((reg) => {
-          if (reg && reg.waiting) {
-            showUpdateBanner(reg);
-          }
-        });
-      }
-    });
-  };
-
   // Регистрируем SW
   navigator.serviceWorker
     .register("/sw.js")
     .then((reg) => {
-      // Проверяем, не ожидает ли уже какой-то SW активации.
-      // Это может случиться, если пользователь открыл сайт в новой вкладке.
-      if (reg.waiting) {
-        showUpdateBanner(reg);
-        return;
-      }
-      // Проверяем, не устанавливается ли SW прямо сейчас.
-      if (reg.installing) {
-        trackInstalling(reg.installing);
-        return;
-      }
+      // Эта функция будет вызываться при каждой загрузке страницы
+      // и принудительно проверять наличие новой версии SW на сервере.
+      // Это решает проблему с кэшированием sw.js на GitHub Pages.
+      reg.update();
+
       // Слушаем событие, которое говорит о нахождении нового SW.
-      reg.addEventListener("updatefound", () => {
-        trackInstalling(reg.installing);
-      });
+      reg.onupdatefound = () => {
+        const installingWorker = reg.installing;
+        installingWorker.onstatechange = () => {
+          if (
+            installingWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
+            // Новый SW установлен и ожидает активации.
+            // Показываем пользователю баннер с предложением обновиться.
+            showUpdateBanner(reg);
+          }
+        };
+      };
     })
     .catch((error) => {
       console.error("Ошибка регистрации ServiceWorker:", error);
@@ -113,7 +105,6 @@ const updateBanner = document.getElementById("update-banner");
 function showUpdateBanner(reg) {
   updateBanner.classList.remove("hidden");
   document.getElementById("update-button").addEventListener("click", () => {
-    // Отправляем команду новому SW на активацию
     if (reg.waiting) {
       reg.waiting.postMessage({ type: "SKIP_WAITING" });
     }
@@ -128,6 +119,13 @@ const statusDiv = document.getElementById("status");
 const resultsDiv = document.getElementById("results");
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
+const progressText = document.getElementById("progress-text");
+const appVersionElement = document.getElementById("app-version");
+
+// Устанавливаем версию в подвале
+if (appVersionElement) {
+  appVersionElement.textContent = `Версия ${APP_VERSION}`;
+}
 
 ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) =>
   dropZone.addEventListener(eventName, preventDefaults, false)
@@ -169,11 +167,9 @@ async function handleFiles(files) {
   resultsDiv.innerHTML = "";
   statusDiv.innerHTML = `<span>Обработка ${heicFiles.length} файлов...</span>`;
 
-  // Показываем и сбрасываем прогресс-бар
   progressContainer.classList.remove("hidden");
   progressBar.style.width = "0%";
-  // ИЗМЕНЕНО: Устанавливаем начальный текст
-  progressBar.textContent = `Обработано 0 из ${heicFiles.length}`;
+  progressText.textContent = `Обработано 0 из ${heicFiles.length}`;
 
   let processedCount = 0;
   let convertedCount = 0;
@@ -187,11 +183,9 @@ async function handleFiles(files) {
       resultsDiv.appendChild(errorCard);
     }
     processedCount++;
-    // Обновляем прогресс-бар после каждого файла
     const percentage = Math.round((processedCount / heicFiles.length) * 100);
     progressBar.style.width = `${percentage}%`;
-    // ИЗМЕНЕНО: Обновляем текст
-    progressBar.textContent = `Обработано ${processedCount} из ${heicFiles.length}`;
+    progressText.textContent = `Обработано ${processedCount} из ${heicFiles.length}`;
   }
 
   statusDiv.textContent = `Готово! Успешно сконвертировано ${convertedCount} из ${heicFiles.length} файлов.`;
