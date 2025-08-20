@@ -1,7 +1,4 @@
 // --- РЕГИСТРАЦИЯ SERVICE WORKER ---
-// ИСПРАВЛЕНИЕ: Добавлена проверка протокола. Service Worker не может быть
-// зарегистрирован с протокола file://, что вызывает ошибку при локальном
-// открытии файла. Этот код предотвращает попытку регистрации в такой среде.
 if (
   "serviceWorker" in navigator &&
   (location.protocol === "https:" || location.hostname === "localhost")
@@ -31,11 +28,28 @@ let deferredPrompt;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  if (
-    !window.matchMedia("(display-mode: standalone)").matches &&
-    !window.navigator.standalone
-  ) {
-    installBanner.classList.remove("hidden");
+
+  // Функция для показа баннера
+  const showInstallBanner = () => {
+    if (
+      !window.matchMedia("(display-mode: standalone)").matches &&
+      !window.navigator.standalone
+    ) {
+      installBanner.classList.remove("hidden");
+    }
+  };
+
+  // Проверяем, является ли устройство Android
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  if (isAndroid) {
+    // На Android ждем 30 секунд, чтобы обойти "эвристику вовлеченности"
+    console.log("Android устройство. Показ баннера через 30 секунд.");
+    setTimeout(showInstallBanner, 30000);
+  } else {
+    // На других устройствах (десктоп) показываем сразу
+    console.log("Десктоп. Показ баннера немедленно.");
+    showInstallBanner();
   }
 });
 
