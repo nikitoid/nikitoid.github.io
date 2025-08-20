@@ -1,4 +1,4 @@
-// --- РЕГИСТРАЦИЯ SERVICE WORKER ---
+// --- РЕГИСТРАЦИЯ SERVICE WORKER И ЛОГИКА ОБНОВЛЕНИЯ ---
 if (
   "serviceWorker" in navigator &&
   (location.protocol === "https:" || location.hostname === "localhost")
@@ -6,15 +6,33 @@ if (
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
-      .then((registration) => {
-        console.log(
-          "ServiceWorker зарегистрирован успешно:",
-          registration.scope
-        );
+      .then((reg) => {
+        // Логика проверки обновлений
+        reg.onupdatefound = () => {
+          const installingWorker = reg.installing;
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === "installed") {
+              if (navigator.serviceWorker.controller) {
+                // Новая версия доступна, показываем баннер
+                showUpdateBanner(reg);
+              } else {
+                console.log("Контент кэширован для оффлайн-использования.");
+              }
+            }
+          };
+        };
       })
       .catch((error) => {
         console.error("Ошибка регистрации ServiceWorker:", error);
       });
+  });
+
+  // Перезагрузка страницы после того, как новый SW вступил в силу
+  let refreshing;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    window.location.reload();
+    refreshing = true;
   });
 }
 
@@ -28,9 +46,7 @@ let deferredPrompt;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPrompt = e;
-
-  // Функция для показа баннера
-  const showInstallBanner = () => {
+  const showInstallPrompt = () => {
     if (
       !window.matchMedia("(display-mode: standalone)").matches &&
       !window.navigator.standalone
@@ -38,18 +54,11 @@ window.addEventListener("beforeinstallprompt", (e) => {
       installBanner.classList.remove("hidden");
     }
   };
-
-  // Проверяем, является ли устройство Android
   const isAndroid = /android/i.test(navigator.userAgent);
-
   if (isAndroid) {
-    // На Android ждем 30 секунд, чтобы обойти "эвристику вовлеченности"
-    console.log("Android устройство. Показ баннера через 30 секунд.");
-    setTimeout(showInstallBanner, 30000);
+    setTimeout(showInstallPrompt, 30000);
   } else {
-    // На других устройствах (десктоп) показываем сразу
-    console.log("Десктоп. Показ баннера немедленно.");
-    showInstallBanner();
+    showInstallPrompt();
   }
 });
 
@@ -62,7 +71,6 @@ function handleInstall() {
     if (choiceResult.outcome === "accepted") {
       console.log("Пользователь согласился на установку");
     } else {
-      console.log("Пользователь отказался от установки");
       installFab.classList.remove("hidden");
     }
     deferredPrompt = null;
@@ -80,11 +88,21 @@ closeBannerButton.addEventListener("click", () => {
 });
 
 window.addEventListener("appinstalled", () => {
-  console.log("Приложение успешно установлено!");
   installBanner.classList.add("hidden");
   installFab.classList.add("hidden");
   deferredPrompt = null;
 });
+
+// --- ФУНКЦИИ ДЛЯ БАННЕРА ОБНОВЛЕНИЯ ---
+const updateBanner = document.getElementById("update-banner");
+function showUpdateBanner(reg) {
+  updateBanner.classList.remove("hidden");
+  document.getElementById("update-button").addEventListener("click", () => {
+    // Отправляем команду новому SW на активацию
+    reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    updateBanner.classList.add("hidden");
+  });
+}
 
 // --- ОСНОВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ ---
 const fileInput = document.getElementById("file-input");
@@ -135,7 +153,7 @@ async function handleFiles(files) {
 
   const results = await Promise.all(filePromises);
 
-  resultsDiv.innerHTML = ""; // Очищаем перед добавлением
+  resultsDiv.innerHTML = "";
   let convertedCount = 0;
   results.forEach((result) => {
     resultsDiv.appendChild(result.value);

@@ -1,5 +1,5 @@
-// Имя кэша
-const CACHE_NAME = "heic-converter-v1";
+// ИЗМЕНЕНО: Версия кэша увеличена для запуска обновления
+const CACHE_NAME = "heic-converter-v2";
 // Файлы, которые нужно закэшировать
 const urlsToCache = [
   "/",
@@ -9,12 +9,12 @@ const urlsToCache = [
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
-  "/icons/favicon.ico", // ДОБАВЛЕНО
+  "/icons/favicon.ico",
   "https://cdn.tailwindcss.com",
   "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js",
 ];
 
-// Установка Service Worker и кэширование файлов
+// Установка Service Worker
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -27,13 +27,16 @@ self.addEventListener("install", (event) => {
 // Активация Service Worker и удаление старых кэшей
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames
+            .filter((name) => name !== CACHE_NAME)
+            .map((name) => caches.delete(name))
+        );
+      })
+      .then(() => self.clients.claim()) // Захватываем контроль над клиентами
   );
 });
 
@@ -41,12 +44,14 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Если ресурс есть в кэше, отдаем его
-      if (response) {
-        return response;
-      }
-      // Иначе, делаем запрос к сети
-      return fetch(event.request);
+      return response || fetch(event.request);
     })
   );
+});
+
+// ДОБАВЛЕНО: Слушатель для активации новой версии по команде от клиента
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
