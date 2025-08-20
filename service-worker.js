@@ -1,7 +1,7 @@
 // service-worker.js
 
 // Версия кеша. Меняйте это значение при каждом обновлении файлов приложения.
-const CACHE_VERSION = "0.0.1";
+const CACHE_VERSION = "0.0.2";
 const CACHE_NAME = `heic-to-jpeg-${CACHE_VERSION}`;
 
 // Файлы, которые необходимо кешировать для работы офлайн.
@@ -25,8 +25,7 @@ self.addEventListener("install", (event) => {
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        // Принудительно активируем новый Service Worker сразу после установки,
-        // не дожидаясь закрытия всех вкладок. Это важно для системы обновлений.
+        // Принудительно активируем новый Service Worker сразу после установки.
         return self.skipWaiting();
       })
   );
@@ -56,27 +55,26 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// 3. Перехват сетевых запросов (Fetch)
+// 3. Перехват сетевых запросов (Fetch) - Стратегия "Network First"
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    // Стратегия "Cache first": сначала ищем ответ в кеше
-    caches.match(event.request).then((response) => {
-      if (response) {
-        // Если ресурс найден в кеше, возвращаем его
-        return response;
-      }
-      // Если в кеше нет, делаем запрос к сети
-      return fetch(event.request);
-    })
-  );
-});
-
-// 4. Получение сообщения от клиента для активации обновления
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.action === "skipWaiting") {
-    console.log(
-      "Service Worker: Получена команда skipWaiting, активация нового воркера..."
-    );
-    self.skipWaiting();
+  // Игнорируем запросы, которые не являются GET
+  if (event.request.method !== "GET") {
+    return;
   }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
+        // Если запрос успешен, кешируем свежую версию и возвращаем ее
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+        return networkResponse;
+      })
+      .catch(() => {
+        // Если сети нет, пытаемся достать ответ из кеша
+        return caches.match(event.request);
+      })
+  );
 });

@@ -15,17 +15,6 @@
       <p>Hello World! Функционал конвертера будет добавлен позже.</p>
     </div>
 
-    <!-- Ненавязчивое окно с предложением установки -->
-    <div id="install-prompt" class="prompt" style="display: none">
-      <div class="prompt-content">
-        <p>Установить приложение для удобного доступа?</p>
-        <button id="install-accept-button" class="button">Установить</button>
-        <button id="install-decline-button" class="button-secondary">
-          Не сейчас
-        </button>
-      </div>
-    </div>
-
     <!-- Постоянная кнопка установки в углу -->
     <button
       id="install-button"
@@ -50,14 +39,6 @@
       </svg>
     </button>
 
-    <!-- Уведомление об обновлении -->
-    <div id="update-notification" class="prompt" style="display: none">
-      <div class="prompt-content">
-        <p>Доступна новая версия приложения!</p>
-        <button id="update-button" class="button">Обновить</button>
-      </div>
-    </div>
-
     <!-- Подвал для отображения версии -->
     <footer>
       <p id="version-display"></p>
@@ -66,97 +47,47 @@
     <script>
       // --- ОТОБРАЖЕНИЕ ВЕРСИИ ---
       // ВАЖНО: Эта версия должна совпадать с CACHE_VERSION в service-worker.js
-      const APP_VERSION = "0.0.1";
+      const APP_VERSION = "0.0.2";
       document.getElementById(
         "version-display"
       ).textContent = `Версия: ${APP_VERSION}`;
 
       // --- ЛОГИКА SERVICE WORKER И ОБНОВЛЕНИЙ ---
       if ("serviceWorker" in navigator) {
-        let newWorker;
-
         navigator.serviceWorker
           .register("/service-worker.js")
           .then((reg) => {
             console.log("Service worker зарегистрирован.");
-
-            // Проверяем, есть ли ожидающий сервис-воркер
-            if (reg.waiting) {
-              newWorker = reg.waiting;
-              showUpdateNotification();
-            }
-
-            // Слушаем событие 'updatefound', которое срабатывает при обнаружении нового сервис-воркера
-            reg.addEventListener("updatefound", () => {
-              console.log("Найдено обновление Service Worker.");
-              newWorker = reg.installing;
-
-              newWorker.addEventListener("statechange", () => {
-                // Если новый сервис-воркер успешно установлен и ожидает активации
-                if (
-                  newWorker.state === "installed" &&
-                  navigator.serviceWorker.controller
-                ) {
-                  showUpdateNotification();
-                }
-              });
-            });
           })
           .catch((error) => {
             console.log("Ошибка регистрации Service Worker:", error);
           });
 
         // При перезагрузке страницы, если новый сервис-воркер уже был, он станет активным
+        // Это вызовет перезагрузку страницы для отображения обновленного контента
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           console.log("Service Worker был обновлен. Перезагрузка страницы...");
           window.location.reload();
         });
-
-        const showUpdateNotification = () => {
-          const updateNotification = document.getElementById(
-            "update-notification"
-          );
-          const updateButton = document.getElementById("update-button");
-
-          updateButton.onclick = () => {
-            // Отправляем сообщение новому сервис-воркеру, чтобы он активировался
-            newWorker.postMessage({ action: "skipWaiting" });
-          };
-
-          updateNotification.style.display = "block";
-        };
       }
 
       // --- ЛОГИКА УСТАНОВКИ PWA ---
       let deferredPrompt;
-      const installPrompt = document.getElementById("install-prompt");
-      const installAcceptButton = document.getElementById(
-        "install-accept-button"
-      );
-      const installDeclineButton = document.getElementById(
-        "install-decline-button"
-      );
       const permanentInstallButton = document.getElementById("install-button");
 
       window.addEventListener("beforeinstallprompt", (e) => {
-        // Предотвращаем стандартное поведение браузера (показ стандартного баннера)
+        // Предотвращаем стандартное поведение браузера
         e.preventDefault();
         // Сохраняем событие, чтобы его можно было вызвать позже
         deferredPrompt = e;
         console.log("Событие beforeinstallprompt было перехвачено");
 
-        // Показываем наше кастомное окно с предложением установки с задержкой в 30 секунд
-        setTimeout(() => {
-          // Показываем только если приложение еще не установлено
-          if (!window.matchMedia("(display-mode: standalone)").matches) {
-            installPrompt.style.display = "block";
-          }
-        }, 30000); // 30 секунд задержки для Android
+        // Показываем нашу кнопку установки
+        permanentInstallButton.style.display = "flex";
       });
 
-      // Клик по кнопке "Установить" в кастомном окне
-      installAcceptButton.addEventListener("click", async () => {
-        installPrompt.style.display = "none";
+      // Клик по постоянной кнопке установки
+      permanentInstallButton.addEventListener("click", async () => {
         if (deferredPrompt) {
           // Показываем стандартный диалог установки браузера
           deferredPrompt.prompt();
@@ -164,23 +95,7 @@
           console.log(`Результат установки: ${outcome}`);
           // Обнуляем событие, так как оно одноразовое
           deferredPrompt = null;
-        }
-      });
-
-      // Клик по кнопке "Не сейчас"
-      installDeclineButton.addEventListener("click", () => {
-        installPrompt.style.display = "none";
-        // Показываем постоянную кнопку в углу, если пользователь отказался
-        permanentInstallButton.style.display = "block";
-      });
-
-      // Клик по постоянной кнопке установки
-      permanentInstallButton.addEventListener("click", async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log(`Результат установки: ${outcome}`);
-          deferredPrompt = null;
+          // Скрываем кнопку после вызова
           permanentInstallButton.style.display = "none";
         }
       });
@@ -188,7 +103,6 @@
       // Скрываем кнопку, если приложение уже установлено
       window.addEventListener("appinstalled", () => {
         console.log("Приложение было успешно установлено!");
-        installPrompt.style.display = "none";
         permanentInstallButton.style.display = "none";
         deferredPrompt = null;
       });
