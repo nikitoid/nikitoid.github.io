@@ -7,6 +7,8 @@ const urlsToCache = [
   "/script.js",
   "/style.css",
   "/manifest.json",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
   "https://cdn.tailwindcss.com",
   "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js",
 ];
