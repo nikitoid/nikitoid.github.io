@@ -2,7 +2,7 @@
 
 // Оборачиваем весь код в IIFE для инкапсуляции
 (() => {
-  const APP_VERSION = "0.0.8";
+  const APP_VERSION = "0.1.0";
 
   // --- DOM Элементы ---
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
@@ -45,7 +45,6 @@
   let convertedFiles = [];
   let directoryHandle = null;
   let currentViewerIndex = -1;
-  // Для свайпов
   let touchStartX = 0;
   let touchEndX = 0;
 
@@ -246,51 +245,86 @@
     progressText.textContent = `Обработано: ${current} из ${total}`;
   }
 
+  // --- НОВАЯ ЛОГИКА КОНВЕРТАЦИИ С WEB WORKERS ---
   async function convertFiles() {
     convertBtn.disabled = true;
     convertBtn.textContent = "Конвертация...";
     gallery.innerHTML = "";
     galleryHeader.style.display = "none";
     progressContainer.style.display = "block";
-    updateProgress(0, filesToConvert.length);
+
+    const totalFiles = filesToConvert.length;
+    updateProgress(0, totalFiles);
     convertedFiles = [];
+    let processedCount = 0;
 
     const quality = parseInt(qualitySlider.value) / 100;
+    const numWorkers = navigator.hardwareConcurrency || 4;
+    const workers = [];
+    const taskQueue = [...filesToConvert];
 
-    let processedCount = 0;
-    for (const file of filesToConvert) {
-      try {
-        const conversionResult = await heic2any({
-          blob: file,
-          toType: "image/jpeg",
-          quality: quality,
-        });
+    for (let i = 0; i < numWorkers; i++) {
+      const worker = new Worker("worker.js");
+      workers.push(worker);
 
-        convertedFiles.push({
-          originalFile: file,
-          convertedBlob: conversionResult,
-          originalSize: file.size,
-          convertedSize: conversionResult.size,
-          filename: file.name.replace(/\.(heic|heif)$/i, ".jpg"),
-        });
-      } catch (error) {
-        console.error("Ошибка конвертации файла:", file.name, error);
-      }
-      processedCount++;
-      updateProgress(processedCount, filesToConvert.length);
+      worker.onmessage = (event) => {
+        processedCount++;
+        const result = event.data;
+        if (result.success) {
+          convertedFiles.push({
+            originalFile: result.originalFile,
+            convertedBlob: result.convertedBlob,
+            originalSize: result.originalFile.size,
+            convertedSize: result.convertedSize,
+            filename: result.filename,
+          });
+        } else {
+          showToast(`Ошибка конвертации файла: ${result.filename}`);
+        }
+
+        updateProgress(processedCount, totalFiles);
+
+        // Если в очереди есть еще задачи, отправляем следующую этому воркеру
+        if (taskQueue.length > 0) {
+          const nextFile = taskQueue.shift();
+          worker.postMessage({ file: nextFile, quality });
+        }
+
+        // Если все файлы обработаны
+        if (processedCount === totalFiles) {
+          renderGallery();
+          // Завершаем работу всех воркеров
+          workers.forEach((w) => w.terminate());
+
+          convertBtn.textContent = "Конвертировать";
+          dropZone.querySelector("p").textContent =
+            "Перетащите .HEIC файлы сюда или нажмите для выбора";
+          setTimeout(() => {
+            progressContainer.style.display = "none";
+          }, 1000);
+        }
+      };
+
+      worker.onerror = (error) => {
+        console.error("Ошибка в Web Worker:", error);
+        showToast(`Критическая ошибка воркера: ${error.message}`);
+      };
     }
 
-    renderGallery();
-    convertBtn.textContent = "Конвертировать";
-    dropZone.querySelector("p").textContent =
-      "Перетащите .HEIC файлы сюда или нажмите для выбора";
-    setTimeout(() => {
-      progressContainer.style.display = "none";
-    }, 1000);
+    // Запускаем начальные задачи
+    for (const worker of workers) {
+      if (taskQueue.length > 0) {
+        const file = taskQueue.shift();
+        worker.postMessage({ file, quality });
+      }
+    }
   }
 
   // --- Галерея и Просмотр ---
   function renderGallery() {
+    // Сортируем файлы по имени, чтобы порядок был предсказуемым
+    convertedFiles.sort((a, b) => a.filename.localeCompare(b.filename));
+
     gallery.innerHTML = "";
     if (convertedFiles.length > 0) {
       galleryHeader.style.display = "flex";
