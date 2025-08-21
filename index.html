@@ -77,7 +77,6 @@
           </button>
         </div>
 
-        <!-- Прогресс бар -->
         <div
           id="progress-container"
           class="progress-container"
@@ -136,15 +135,20 @@
         </div>
         <div class="setting-item">
           <label>Метод сохранения</label>
-          <div class="toggle-switch-container">
-            <span>Загрузка через браузер</span>
+          <!-- Обновленная структура для переключателя -->
+          <div class="save-method-wrapper">
+            <div class="save-method-option">
+              <span>Загрузка через браузер</span>
+            </div>
             <label class="toggle-switch">
               <input type="checkbox" id="save-method-toggle" />
               <span class="slider round"></span>
             </label>
-            <span>Прямое сохранение</span>
+            <div class="save-method-option">
+              <span>Прямое сохранение</span>
+              <small id="fs-api-support"></small>
+            </div>
           </div>
-          <small id="fs-api-support" class="tooltip"></small>
         </div>
         <div class="setting-item">
           <label for="save-path-btn">Папка для сохранения</label>
@@ -153,6 +157,10 @@
           </button>
           <p>Текущий путь: <code id="current-save-path">не выбрана</code></p>
         </div>
+      </div>
+      <!-- Блок с версией приложения -->
+      <div class="version-info">
+        <p id="version-display"></p>
       </div>
     </div>
 
@@ -207,10 +215,6 @@
         </svg>
       </button>
     </div>
-
-    <footer>
-      <p id="version-display"></p>
-    </footer>
 
     <!-- Подключаем основной скрипт приложения -->
     <script src="script.js" defer></script>

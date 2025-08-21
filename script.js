@@ -2,7 +2,7 @@
 
 // Оборачиваем весь код в IIFE для инкапсуляции
 (() => {
-  const APP_VERSION = "0.0.6";
+  const APP_VERSION = "0.0.7";
 
   // --- DOM Элементы ---
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
@@ -61,7 +61,6 @@
 
   async function initDB() {
     return new Promise((resolve, reject) => {
-      // Добавляем проверку, чтобы избежать ошибок в средах, где IndexedDB может быть недоступен
       if (!("indexedDB" in window)) {
         console.warn("IndexedDB не поддерживается в этом браузере.");
         return reject("IndexedDB not supported");
@@ -113,8 +112,6 @@
     return false;
   }
 
-  // --- ИСПРАВЛЕННАЯ ЛОГИКА ИНИЦИАЛИЗАЦИИ ---
-  // Асинхронная часть инициализации вынесена в отдельную функцию
   async function initializeAsyncParts() {
     try {
       await initDB();
@@ -131,9 +128,7 @@
     }
   }
 
-  // Основной обработчик теперь синхронный
   document.addEventListener("DOMContentLoaded", () => {
-    // Сначала выполняем всю синхронную работу, чтобы интерфейс стал активным
     document.getElementById(
       "version-display"
     ).textContent = `Версия: ${APP_VERSION}`;
@@ -144,7 +139,6 @@
     updateUIFromSettings();
     registerServiceWorker();
 
-    // Асинхронную часть запускаем после, чтобы она не блокировала основной поток
     initializeAsyncParts();
   });
 
@@ -326,8 +320,7 @@
   function checkFileSystemApiSupport() {
     const isSupported = "showDirectoryPicker" in window;
     if (!isSupported) {
-      fsApiSupport.textContent =
-        "Ваш браузер не поддерживает прямое сохранение.";
+      fsApiSupport.textContent = "Ваш браузер не поддерживает этот метод.";
       saveMethodToggle.disabled = true;
       savePathBtn.disabled = true;
       if (settings.saveMethod === "filesystem") {
@@ -336,7 +329,7 @@
         updateUIFromSettings();
       }
     } else {
-      fsApiSupport.textContent = "Сохранение напрямую в выбранную папку.";
+      fsApiSupport.textContent = "Сохранение в выбранную папку.";
     }
   }
 
@@ -352,24 +345,33 @@
   }
 
   async function downloadFile(file) {
-    if (
-      settings.saveMethod === "filesystem" &&
-      (await verifyPermission(directoryHandle))
-    ) {
-      try {
-        const fileHandle = await directoryHandle.getFileHandle(file.filename, {
-          create: true,
-        });
-        const writable = await fileHandle.createWritable();
-        await writable.write(file.convertedBlob);
-        await writable.close();
-      } catch (error) {
-        console.error("Ошибка прямого сохранения:", error);
-        downloadWithBrowser(file);
+    if (settings.saveMethod === "filesystem") {
+      if (!directoryHandle) {
+        directoryHandle = await getHandle();
       }
-    } else {
-      downloadWithBrowser(file);
+      if (await verifyPermission(directoryHandle)) {
+        try {
+          const fileHandle = await directoryHandle.getFileHandle(
+            file.filename,
+            { create: true }
+          );
+          const writable = await fileHandle.createWritable();
+          await writable.write(file.convertedBlob);
+          await writable.close();
+          return;
+        } catch (error) {
+          console.error("Ошибка прямого сохранения:", error);
+          alert(
+            "Не удалось сохранить файл напрямую. Проверьте разрешения для папки."
+          );
+        }
+      } else {
+        alert(
+          "Нет разрешения на запись в выбранную папку. Файл будет скачан через браузер."
+        );
+      }
     }
+    downloadWithBrowser(file);
   }
 
   function downloadWithBrowser(file) {

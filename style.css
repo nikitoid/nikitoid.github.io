@@ -34,7 +34,7 @@
 body {
   font-family: var(--font-family);
   margin: 0;
-  padding: 0 0 50px 0;
+  padding: 0; /* Убираем отступ от подвала */
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color var(--transition-speed),
@@ -277,6 +277,10 @@ h1 {
 }
 
 /* --- СТРАНИЦА НАСТРОЕК --- */
+#settings-page {
+  justify-content: space-between; /* Прижимает футер с версией к низу */
+}
+
 .settings-content {
   display: flex;
   flex-direction: column;
@@ -288,15 +292,11 @@ h1 {
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
 }
-.setting-item label {
+.setting-item > label {
+  /* Прямой потомок, чтобы не влиять на label внутри */
   display: block;
   margin-bottom: 1rem;
   font-weight: 500;
-}
-.setting-item small {
-  display: block;
-  margin-top: 0.5rem;
-  color: var(--text-secondary);
 }
 code {
   background-color: var(--accent-secondary);
@@ -304,6 +304,44 @@ code {
   border-radius: 4px;
   color: var(--text-primary);
   word-break: break-all;
+}
+
+/* --- Новые стили для переключателя --- */
+.save-method-wrapper {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+}
+.save-method-option {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+}
+.save-method-option:first-child {
+  align-items: flex-end;
+  text-align: right;
+}
+.save-method-option:last-child {
+  align-items: flex-start;
+  text-align: left;
+}
+.save-method-option small {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* --- Блок с версией --- */
+.version-info {
+  text-align: center;
+  padding-top: 2rem;
+  margin-top: 2rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-color);
+}
+.version-info p {
+  margin: 0;
 }
 
 /* --- Кастомные элементы (слайдер, переключатель) --- */
@@ -325,15 +363,6 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
 }
 
-.toggle-switch-container {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap; /* Для адаптивности */
-}
-.toggle-switch-container span {
-  flex-shrink: 0;
-}
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -396,18 +425,4 @@ input:checked + .slider:before {
   100% {
     transform: rotate(360deg);
   }
-}
-
-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background-color: var(--bg-secondary);
-  padding: 0.5rem;
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  border-top: 1px solid var(--border-color);
-  z-index: 100;
 }
