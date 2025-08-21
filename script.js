@@ -2,7 +2,7 @@
 
 // Оборачиваем весь код в IIFE для инкапсуляции
 (() => {
-  const APP_VERSION = "0.0.7";
+  const APP_VERSION = "0.0.8";
 
   // --- DOM Элементы ---
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
@@ -45,6 +45,9 @@
   let convertedFiles = [];
   let directoryHandle = null;
   let currentViewerIndex = -1;
+  // Для свайпов
+  let touchStartX = 0;
+  let touchEndX = 0;
 
   // --- Настройки ---
   const defaultSettings = {
@@ -403,6 +406,25 @@
     convertedFiles.forEach((file) => downloadFile(file));
   }
 
+  // --- Обработка свайпов ---
+  function handleTouchStart(e) {
+    touchStartX = e.changedTouches[0].screenX;
+  }
+
+  function handleTouchEnd(e) {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  }
+
+  function handleSwipe() {
+    const swipeThreshold = 50; // Минимальная дистанция для свайпа
+    if (touchEndX < touchStartX - swipeThreshold) {
+      showNextImage();
+    } else if (touchEndX > touchStartX + swipeThreshold) {
+      showPrevImage();
+    }
+  }
+
   // --- Установка обработчиков событий ---
   function setupEventListeners() {
     themeToggleBtn.addEventListener("click", toggleTheme);
@@ -450,6 +472,10 @@
     });
     prevBtn.addEventListener("click", showPrevImage);
     nextBtn.addEventListener("click", showNextImage);
+
+    // Свайпы
+    viewerModal.addEventListener("touchstart", handleTouchStart, false);
+    viewerModal.addEventListener("touchend", handleTouchEnd, false);
 
     // Settings
     defaultQualitySlider.addEventListener("input", (e) => {
