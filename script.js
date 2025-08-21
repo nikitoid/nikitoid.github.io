@@ -116,11 +116,9 @@
     try {
       await initDB();
       const handle = await getHandle();
-      if (await verifyPermission(handle)) {
+      if (handle) {
         directoryHandle = handle;
         currentSavePath.textContent = directoryHandle.name;
-      } else {
-        directoryHandle = null;
       }
     } catch (error) {
       console.error("Ошибка при инициализации базы данных:", error);
@@ -141,6 +139,26 @@
 
     initializeAsyncParts();
   });
+
+  // --- Уведомления (Toast) ---
+  function showToast(message) {
+    const toastContainer = document.getElementById("toast-container");
+    const toast = document.createElement("div");
+    toast.className = "toast-message";
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add("show");
+    }, 10);
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.parentElement.removeChild(toast);
+        }
+      }, 500);
+    }, 3000);
+  }
 
   // --- Функции Настроек ---
   function loadSettings() {
@@ -358,17 +376,14 @@
           const writable = await fileHandle.createWritable();
           await writable.write(file.convertedBlob);
           await writable.close();
+          showToast(`Файл "${file.filename}" сохранен.`);
           return;
         } catch (error) {
           console.error("Ошибка прямого сохранения:", error);
-          alert(
-            "Не удалось сохранить файл напрямую. Проверьте разрешения для папки."
-          );
+          showToast(`Ошибка сохранения файла: ${error.name}`);
         }
       } else {
-        alert(
-          "Нет разрешения на запись в выбранную папку. Файл будет скачан через браузер."
-        );
+        showToast("Нет разрешения на запись в папку.");
       }
     }
     downloadWithBrowser(file);
