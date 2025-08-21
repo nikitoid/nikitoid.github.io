@@ -61,8 +61,14 @@
 
   async function initDB() {
     return new Promise((resolve, reject) => {
+      // Добавляем проверку, чтобы избежать ошибок в средах, где IndexedDB может быть недоступен
+      if (!("indexedDB" in window)) {
+        console.warn("IndexedDB не поддерживается в этом браузере.");
+        return reject("IndexedDB not supported");
+      }
       const request = indexedDB.open(DB_NAME, 1);
-      request.onerror = () => reject("Ошибка открытия IndexedDB");
+      request.onerror = (event) =>
+        reject(`Ошибка открытия IndexedDB: ${event.target.error}`);
       request.onsuccess = (event) => {
         db = event.target.result;
         resolve();
@@ -88,12 +94,15 @@
     if (!db) return null;
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const handle = await store.get("directoryHandle");
-    return handle;
+    const request = store.get("directoryHandle");
+    return new Promise((resolve) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    });
   }
 
   async function verifyPermission(handle) {
-    if (!handle) return false;
+    if (!handle || typeof handle.queryPermission !== "function") return false;
     const options = { mode: "readwrite" };
     if ((await handle.queryPermission(options)) === "granted") {
       return true;
@@ -104,31 +113,51 @@
     return false;
   }
 
-  // --- Инициализация ---
-  document.addEventListener("DOMContentLoaded", async () => {
+  // --- ИСПРАВЛЕННАЯ ЛОГИКА ИНИЦИАЛИЗАЦИИ ---
+  // Асинхронная часть инициализации вынесена в отдельную функцию
+  async function initializeAsyncParts() {
+    try {
+      await initDB();
+      const handle = await getHandle();
+      if (await verifyPermission(handle)) {
+        directoryHandle = handle;
+        currentSavePath.textContent = directoryHandle.name;
+      } else {
+        directoryHandle = null;
+      }
+    } catch (error) {
+      console.error("Ошибка при инициализации базы данных:", error);
+      directoryHandle = null;
+    }
+  }
+
+  // Основной обработчик теперь синхронный
+  document.addEventListener("DOMContentLoaded", () => {
+    // Сначала выполняем всю синхронную работу, чтобы интерфейс стал активным
     document.getElementById(
       "version-display"
     ).textContent = `Версия: ${APP_VERSION}`;
-    await initDB();
-    directoryHandle = await getHandle();
-    if (await verifyPermission(directoryHandle)) {
-      currentSavePath.textContent = directoryHandle.name;
-    } else {
-      directoryHandle = null;
-    }
-
     loadSettings();
     applyTheme();
     setupEventListeners();
     checkFileSystemApiSupport();
     updateUIFromSettings();
     registerServiceWorker();
+
+    // Асинхронную часть запускаем после, чтобы она не блокировала основной поток
+    initializeAsyncParts();
   });
 
   // --- Функции Настроек ---
   function loadSettings() {
-    const savedSettings = JSON.parse(localStorage.getItem("converterSettings"));
-    settings = { ...defaultSettings, ...savedSettings };
+    try {
+      const savedSettings = JSON.parse(
+        localStorage.getItem("converterSettings")
+      );
+      settings = { ...defaultSettings, ...savedSettings };
+    } catch (e) {
+      settings = { ...defaultSettings };
+    }
   }
 
   function saveSettings() {
